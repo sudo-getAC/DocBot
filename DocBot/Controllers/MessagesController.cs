@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
 using Microsoft.Bot.Connector;
+using Microsoft.Bot.Builder.Luis;
+using Microsoft.Bot.Builder.Luis.Models;
 using Newtonsoft.Json;
+using DocBot.Controllers;
+using System.Diagnostics;
 
 namespace DocBot
 {
@@ -27,8 +31,26 @@ namespace DocBot
 
                 // return our reply to the user
                 Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
-                if(activity.Text=="hi")
-                    reply= activity.CreateReply($"Hi. How may I Help you");
+                if (activity.Text == "hi")
+                {
+                    reply = activity.CreateReply($"Hi. How may I Help you");
+                }
+                else
+                {
+
+                    ExtractLuis replyFromLuis = new ExtractLuis();
+                    //Luis details
+                    LuisModelAttribute docBot = new LuisModelAttribute("0ada6925-a4b5-4eae-91bb-0157a7f6efdf", "8e313738104945008db930cb54f355a7");
+                    LuisService docService = new LuisService(docBot);
+                    LuisResult LuisResponse = await docService.QueryAsync(activity.Text);
+                    Debug.WriteLine(LuisResponse.Intents[0].Intent);
+                    string disease = replyFromLuis.getDisease(LuisResponse);
+                    if(disease!=null)
+                        reply = activity.CreateReply($"Sorry you have {disease}");
+                    else
+                        reply = activity.CreateReply($"Sorry I do not understand you");
+
+                }
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
