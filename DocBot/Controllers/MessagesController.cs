@@ -27,6 +27,8 @@ namespace DocBot
 
                 // return our reply to the user
                 Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
+                if(activity.Text=="hi")
+                    reply= activity.CreateReply($"Hi. How may I Help you");
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
