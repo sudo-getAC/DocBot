@@ -11,6 +11,8 @@ using Microsoft.Bot.Builder.Luis.Models;
 using Newtonsoft.Json;
 using DocBot.Controllers;
 using System.Diagnostics;
+using Microsoft.Bot.Builder.Dialogs;
+using System.Collections.Generic;
 
 namespace DocBot
 {
@@ -29,8 +31,11 @@ namespace DocBot
                 // calculate something for us to return
                 int length = (activity.Text ?? string.Empty).Length;
 
+
+                /*
                 // return our reply to the user
                 Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
+
                 if (activity.Text == "hi")
                 {
                     reply = activity.CreateReply($"Hi. How may I Help you");
@@ -44,14 +49,13 @@ namespace DocBot
                     LuisService docService = new LuisService(docBot);
                     LuisResult LuisResponse = await docService.QueryAsync(activity.Text);
                     Debug.WriteLine(LuisResponse.Intents[0].Intent);
-                    string disease = replyFromLuis.getDisease(LuisResponse);
-                    if(disease!=null)
-                        reply = activity.CreateReply($"Sorry you have {disease}");
-                    else
-                        reply = activity.CreateReply($"Sorry I do not understand you");
-
+                    string query = replyFromLuis.getDisease(LuisResponse,activity.Text);
+                    RootObject[] t = await Search.GetSearchQuery(query);
+                    
                 }
-                await connector.Conversations.ReplyToActivityAsync(reply);
+                */
+                await Conversation.SendAsync(activity, () => new EchoDialog());
+                //await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
             {
@@ -89,5 +93,61 @@ namespace DocBot
 
             return null;
         }
+
+        [Serializable]
+        public class EchoDialog : IDialog<object>
+        {
+            protected int count = 1;
+            public async Task StartAsync(IDialogContext context)
+            {
+                context.Wait(MessageReceivedAsync);
+            }
+            public virtual async Task MessageReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> argument)
+            {
+                var message = await argument;
+                var optionsList = new List<string>();
+                string query = string.Empty;
+                if (message.Text == "hi")
+                {
+                    await context.PostAsync($"How you doinn...");
+                    context.Wait(MessageReceivedAsync);
+                }
+                else if (count == 1)
+                {
+                    ExtractLuis replyFromLuis = new ExtractLuis();
+                    //Luis details
+                    LuisModelAttribute docBot = new LuisModelAttribute("0ada6925-a4b5-4eae-91bb-0157a7f6efdf", "8e313738104945008db930cb54f355a7");
+                    LuisService docService = new LuisService(docBot);
+                    LuisResult LuisResponse = await docService.QueryAsync(message.Text);
+                    query = replyFromLuis.getDisease(LuisResponse, message.Text);
+                    RootObject[] t = await Search.GetSearchQuery(query);
+                    optionsList.Clear();
+                    foreach(RootObject x in t)
+                    {
+                        optionsList.Add(x.label.ToString());
+                    }
+                    PromptOptions<string> options = new PromptOptions<string>($"What kind of {query} ?", options: optionsList);
+                    PromptDialog.Choice<string>(context, AfterResetAsync, options);
+                    count++;
+                }
+                else if (message.Text == "reset")
+                {
+                    count = 1;
+                }
+                else
+                {
+                    await context.PostAsync($"{this.count++}: You said {message.Text}");
+                    context.Wait(MessageReceivedAsync);
+                }
+            }
+            public async Task AfterResetAsync(IDialogContext context, IAwaitable<string> argument)
+            {
+                var confirm = await argument;
+                
+                context.Wait(MessageReceivedAsync);
+            }
+        }
+
+
     }
 }
