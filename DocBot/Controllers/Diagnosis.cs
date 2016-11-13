@@ -14,7 +14,7 @@ using System.Web;
 
 namespace DocBot.Controllers
 {
-
+    [Serializable]
     public class Choice
     {
         public string id { get; set; }
@@ -70,7 +70,7 @@ namespace DocBot.Controllers
 
     public class Diagnosis
     {
-        public static async Task<IRestResponse<RootObjectD>> PostDiagnosisQuery(string s_id)
+        public static async Task<IRestResponse<RootObjectD>> PostDiagnosisQuery(string s_id,string choice)
         {
             var client = new RestClient("https://api.infermedica.com/v2/diagnosis");
             var request = new RestRequest(Method.POST);
@@ -79,7 +79,7 @@ namespace DocBot.Controllers
             request.AddHeader("content-type", "application/json");
             request.AddHeader("app_key", "fb166ebd9340942d20c121e2cf4eeb56");
             request.AddHeader("app_id", "52447695");
-            EvidenceObject[] evi = { new EvidenceObject { id = s_id, choice_id = "present" } };
+            EvidenceObject[] evi = { new EvidenceObject { id = s_id, choice_id = choice } };
             QueryObject content = new QueryObject { sex = "male", age = 20, evidence = evi };
 
             string data = JsonConvert.SerializeObject(content);
