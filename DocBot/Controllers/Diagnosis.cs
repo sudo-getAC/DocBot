@@ -21,6 +21,7 @@ namespace DocBot.Controllers
         public string label { get; set; }
     }
 
+    [Serializable]
     public class Item
     {
         public string id { get; set; }
