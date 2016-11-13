@@ -109,30 +109,30 @@ namespace DocBot
                 //Luis details
                 LuisModelAttribute docBot = new LuisModelAttribute("0ada6925-a4b5-4eae-91bb-0157a7f6efdf", "8e313738104945008db930cb54f355a7");
                 LuisService docService = new LuisService(docBot);
-                RootObject[] optionID=null;
+                RootObject[] optionID = null;
 
                 var message = await argument;
                 var optionsList = new List<string>();
                 string query = string.Empty;
                 CancellationTokenSource source = new CancellationTokenSource();
                 CancellationToken token = source.Token;
-                LuisResult LuisResponse = await docService.QueryAsync(message.Text,token);
-                
+                LuisResult LuisResponse = await docService.QueryAsync(message.Text, token);
 
-                if (LuisResponse.Intents[0].Intent=="hiHello")
+
+                if (LuisResponse.Intents[0].Intent == "hiHello")
                 {
-                    await context.PostAsync($"Hi. How are you today");
+                    await context.PostAsync($"Hi. How may I help you?   ");
                     context.Wait(MessageReceivedAsync);
                 }
-                else if (LuisResponse.Intents[0].Intent=="haveDisease")
+                else if (LuisResponse.Intents[0].Intent == "haveDisease")
                 {
                     ExtractLuis replyFromLuis = new ExtractLuis();
-                    
+
                     query = replyFromLuis.getDisease(LuisResponse, message.Text);
                     optionID = await Search.GetSearchQuery(query);
-                    
+
                     optionsList.Clear();
-                    foreach(RootObject x in optionID)
+                    foreach (RootObject x in optionID)
                     {
                         optionsList.Add(x.label.ToString());
                     }
@@ -155,56 +155,86 @@ namespace DocBot
                     context.Wait(MessageReceivedAsync);
                 }
             }
+            [Serializable]
+            public class choiceWithId
+            {
+                public string choice { get; set; }
+                public string id { get; set; }
+            };
+            Item item;
             public async Task AfterResetAsync(IDialogContext context, IAwaitable<string> argument)
             {
                 var confirm = await argument;
-                var optionsList = new List<Choice>();
+                var optionsList = new List<choiceWithId>();
                 var desc = new List<string>();
                 RootObject[] optionID = await Search.GetSearchQuery(confirm);
-                IRestResponse<RootObjectD> newOption = await Diagnosis.PostDiagnosisQuery(optionID[0].id.ToString(),"present");
+                IRestResponse<RootObjectD> newOption = await Diagnosis.PostDiagnosisQuery(optionID[0].id.ToString(), "present");
                 //await context.PostAsync($" {newOption.Data.question.text}");
 
-                foreach(Item i in newOption.Data.question.items)
+
+                 item = newOption.Data.question.items[0];
+                string itemID = item.id;
+                foreach (Choice c in item.choices)
                 {
-                    string itemID = i.id;
-                    foreach(Choice c in i.choices)
-                    {
-                        optionsList.Add(c);
-                        desc.Add(c.label);
-                    }
+                    choiceWithId ch = new choiceWithId();
+                    ch.choice = c.label;
+                    ch.id = itemID;
+                    optionsList.Add(ch);
+                    desc.Add(c.label);
                 }
-                PromptOptions<Choice> options = new PromptOptions<Choice>($"{newOption.Data.question.text} ?", options: optionsList, descriptions: desc);
-                PromptDialog.Choice<Choice>(context, AfterResetQuestions, options);
-                
+                choiceWithId ch1 = new choiceWithId();
+                ch1.choice = "quit";
+                ch1.id = itemID;
+                optionsList.Add(ch1);
+                desc.Add("quit");
+                PromptOptions<choiceWithId> options = new PromptOptions<choiceWithId>($"{newOption.Data.question.text} \n {newOption.Data.question.items[0].name}?", options: optionsList, descriptions: desc);
+                PromptDialog.Choice<choiceWithId>(context, AfterResetQuestions, options);
+
                 //context.Wait(MessageReceivedAsync);
             }
-            public async Task AfterResetQuestions(IDialogContext context, IAwaitable<Choice> argument)
+            public async Task AfterResetQuestions(IDialogContext context, IAwaitable<choiceWithId> argument)
             {
+                
                 var confirm = await argument;
+                var desc = new List<string>();
+                Debug.WriteLine(confirm.choice);
+                if (confirm.choice == "quit")
+                {
+                    await context.PostAsync($"See you again.");
+                    context.Wait(MessageReceivedAsync);
+                    //context.Call(,MessageReceivedAsync);
+                }
 
-                //string[] id=confirm.Split('-');
-                var test = confirm.id;
-                var optionsList = new List<string>();
-                //IRestResponse<RootObjectD> newOption = await Diagnosis.PostDiagnosisQuery(id[1],(id[0]=="Yes")?"present":"absent");
-                //await context.PostAsync($" {newOption.Data.question.text}");
-                //foreach (Item i in newOption.Data.question.items)
-                //{
-                //    string itemID = i.id;
-                //    foreach (Choice c in i.choices)
-                //    {
-                //        optionsList.Add(c.label + "-" + itemID);
-                //    }
-                //}
-                //if (newOption.Data.conditions[0].probability > 0.7)
-                //{
-                //    await context.PostAsync($"You have {newOption.Data.conditions[0].name}");
-                //    context.Wait(MessageReceivedAsync);
-                //}
-                //else {
-                //    PromptOptions<string> options = new PromptOptions<string>($"{newOption.Data.question.text} ?", options: optionsList);
-                //    PromptDialog.Choice<string>(context, AfterResetQuestions, options);
-                //}
-                ////context.Wait(MessageReceivedAsync);
+                string id = confirm.id;
+                var optionsList = new List<choiceWithId>();
+                IRestResponse<RootObjectD> newOption = await Diagnosis.PostDiagnosisQuery(id,(confirm.choice=="Yes")?"present":"absent");
+
+                Item item = newOption.Data.question.items[0];
+                string itemID = item.id;
+                foreach (Choice c in item.choices)
+                {
+                    choiceWithId ch = new choiceWithId();
+                    ch.choice = c.label;
+                    ch.id = itemID;
+                    optionsList.Add(ch);
+                    desc.Add(c.label);
+                }
+                
+                choiceWithId ch1 = new choiceWithId { id = itemID, choice = "quit"};
+                ch1.id = itemID;
+                optionsList.Add(ch1);
+                desc.Add("quit");
+
+                if (newOption.Data.conditions[0].probability > 0.7)
+                {
+                    await context.PostAsync($"You have {newOption.Data.conditions[0].name}");
+                    context.Wait(MessageReceivedAsync);
+                }
+                else {
+                    PromptOptions<choiceWithId> options = new PromptOptions<choiceWithId>($"{newOption.Data.question.text} \n{newOption.Data.question.items[0].name} {newOption.Data.conditions[0].probability}?", options: optionsList, descriptions: desc);
+                    PromptDialog.Choice<choiceWithId>(context, AfterResetQuestions, options);
+                }
+                //context.Wait(MessageReceivedAsync);
             }
         }
 
