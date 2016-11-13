@@ -8,9 +8,9 @@ namespace DocBot.Controllers
 {
     public class ExtractLuis
     {
-        public string getDisease(LuisResult LuisResponse)
+        public string getDisease(LuisResult LuisResponse,string normalResponse)
         {
-            if (LuisResponse.Intents[0].Intent == "haveDisease" && LuisResponse.Intents[0].Intent!="None")
+            if (LuisResponse.Intents[0].Intent == "haveDisease")
                 return LuisResponse.Entities[0].Entity;
             return null;
         }

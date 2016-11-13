@@ -21,13 +21,12 @@ namespace DocBot.Controllers
         {
             RootObject[] result = null;
             HttpClient client = new HttpClient();
-            client.BaseAddress = new Uri("https://api.infermedica.com/v2/search");
+            client.BaseAddress = new Uri("https://api.infermedica.com/v2/search?");
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Add("app_id", "52447695");
             client.DefaultRequestHeaders.Add("app_key", "fb166ebd9340942d20c121e2cf4eeb56");
 
-            //Debug.WriteLine("hello");
 
             var path = "https://api.infermedica.com/v2/search?phrase=" + Uri.EscapeDataString(phrase);
             HttpResponseMessage response = await client.GetAsync(path);
